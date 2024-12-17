@@ -3,10 +3,11 @@ from keras.models import Sequential
 from keras.layers import Dense, Flatten
 from keras.utils import to_categorical
 from keras.losses import CategoricalCrossentropy
-from keras.preprocessing.image import ImageDataGenerator
+# from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import Adam
 import tf2onnx
 from VeriX import *
+from VeriXBacktrack import *
 
 """
 load and process GTSRB data.
@@ -15,6 +16,7 @@ gtsrb_path = 'models/gtsrb.pickle'
 with open(gtsrb_path, 'rb') as handle:
     gtsrb = pickle.load(handle)
 x_train, y_train = gtsrb['x_train'], gtsrb['y_train']
+print(x_train.shape, y_train.shape) # (17550, 32, 32, 3) (17550,)
 x_test, y_test = gtsrb['x_test'], gtsrb['y_test']
 x_valid, y_valid = gtsrb['x_valid'], gtsrb['y_valid']
 y_train = to_categorical(y_train, 10)
@@ -30,11 +32,21 @@ gtsrb_labels = ['50 mph', '30 mph', 'yield', 'priority road',
 """
 show a simple example usage of VeriX. 
 """
-verix = VeriX(dataset="GTSRB",
-              image=x_test[0],
-              model_path="models/gtsrb-10x2.onnx")
-verix.traversal_order(traverse="heuristic")
-verix.get_explanation(epsilon=0.01)
+choice = np.random.randint(low=0, high=x_test.shape[0], size=(100,))
+for idx in choice:
+    verix_base = VeriX(dataset="GTSRB",
+                image=x_test[idx],
+                name=f"gtsrb_{idx}",
+                model_path="models/gtsrb-10x2.onnx")
+    verix_base.traversal_order(traverse="heuristic")
+    verix_base.get_explanation(epsilon=0.01)
+
+    verix = VeriX2(dataset="GTSRB",
+                image=x_test[idx],
+                name=f"gtsrb_{idx}",
+                model_path="models/gtsrb-10x2.onnx")
+    verix.traversal_order(traverse="heuristic")
+    len_sat, len_timeout = verix.get_explanation(epsilon=0.01)
 
 exit()
 

@@ -6,6 +6,7 @@ from keras.losses import CategoricalCrossentropy
 from keras.optimizers import Adam
 import tf2onnx
 from VeriX import *
+from VeriXBacktrack import *
 
 """
 download and process MNIST data.
@@ -21,17 +22,44 @@ x_test = x_test.astype('float32') / 255
 """
 show a simple example usage of VeriX. 
 """
-verix = VeriX(dataset="MNIST",
-              image=x_test[10],
-              model_path="models/mnist-10x2.onnx")
-verix.traversal_order(traverse="heuristic")
-verix.get_explanation(epsilon=0.05)
+choice = np.random.randint(low=0, high=x_test.shape[0], size=(100,))
+for idx in choice:
+    verix_base = VeriX(dataset="MNIST",
+                    image=x_test[idx],
+                    name=f"mnist_{idx}",
+                    model_path="models/mnist-10x2.onnx",
+                    epsilon=0.05)
+    verix_base.traversal_order(traverse="heuristic")
+    with open("lookahead_mnist.txt", "a+") as f:
+        f.write(f"baseline: {verix_base.get_explanation(epsilon=0.05)}\n")
+
+    verix = VeriX2(dataset="MNIST",
+                image=x_test[idx],
+                name=f"mnist_{idx}",
+                model_path="models/mnist-10x2.onnx")
+    verix.traversal_order(traverse="heuristic")
+
+    len_sat, len_timeout = verix.get_explanation(epsilon=0.05)
 exit()
 
 """
 or you can train your own MNIST model.
 Note: to obtain sound and complete explanations, train the model from logits directly.
 """
+from tensorflow.keras.models import load_model
+
+# Load the saved model
+model_name = 'mnist-10x2.onnx'
+loaded_model = load_model('models/' + model_name)
+
+# Evaluate the loaded model
+score = loaded_model.evaluate(x_test, y_test, verbose=0)
+print("Test loss:", score[0])
+print("Test accuracy:", score[1])
+exit()
+
+
+
 model_name = 'mnist-10x2'
 model = Sequential(name=model_name)
 model.add(Flatten(input_shape=(28, 28, 1)))
@@ -50,8 +78,8 @@ model.fit(x_train, y_train,
 score = model.evaluate(x_test, y_test, verbose=0)
 print("Test loss:", score[0])
 print("Test accuracy:", score[1])
-# model.save('models/' + model_name + '.h5')
-model_proto, _ = tf2onnx.convert.from_keras(model, output_path='models/' + model_name + '.onnx')
+model.save('models/' + model_name + '.h5')
+# model_proto, _ = tf2onnx.convert.from_keras(model, output_path='models/' + model_name + '.onnx')
 
 
 
